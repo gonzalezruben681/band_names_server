@@ -20,8 +20,14 @@
         });
 
         socket.emit('mensaje',{nombre: 'Rubén'}); // emitir eventos
-        socket.on('mensaje',function(payload){ // escuchar eventos
+
+        socket.on('nuevo-mensaje',function(payload){ // escuchar eventos
             console.log('Escuchando', payload);
+        });
+
+        socket.on('active-bands', function(bands) {
+            console.clear();
+            console.table(bands);
         });
     </script>
 </body>
