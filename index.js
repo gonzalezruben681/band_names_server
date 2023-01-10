@@ -8,6 +8,9 @@ const server = require('http').createServer(app);
 module.exports.io = require('socket.io')(server);
 require('./sockets/socket');
 
+// DB Config
+require('./database/config').dbConnection();
+
 // Path público
 const publicPath = path.resolve(__dirname, 'public');
 app.use(express.static(publicPath));

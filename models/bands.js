@@ -1,41 +1,48 @@
 const Band = require("./band");
 
-
 class Bands {
+  constructor() {}
 
-    constructor() {
-        this.bands = [];
-    }
+  addBand(band) {
+    // Crear nueva banda y guardar
+    const newBand = new Band({ name: band.name, votes: 0 });
+    newBand.save((err, band) => {
+      // manejar errores aquí
+      if (err) {
+        console.log(err);
+      }
+    });
+  }
 
-    addBand( band = new Band() ) {
-        this.bands.push( band );
-    }
+  getBands() {
+    // Recuperar todas las bandas de la base de datos
+    Band.find((err, bands) => {
+      if (err) {
+        console.log(err);
+      }
+      return bands;
+    });
+  }
 
-    getBands() {
-        return this.bands;
-    }
+  deleteBand(id) {
+    // Eliminar banda
+    Band.findOneAndDelete({ _id: id }, (err, band) => {
+      // manejar errores aquí
+      if (err) {
+        console.log(err);
+      }
+    });
+  }
 
-    deleteBand( id = '' ) {
-        this.bands = this.bands.filter( band => band.id !== id );
-        return this.bands;
-    }
-
-    voteBand( id = '' ) {
-
-        this.bands = this.bands.map( band => {
-
-            if ( band.id === id ) {
-                band.votes++;
-                return band;
-            } else {
-                return band;
-            }
-
-        });
-
-    }
-
+  voteBand(id) {
+    // Incrementar votos de la banda y guardar
+    Band.findOneAndUpdate({ _id: id }, { $inc: { votes: 1 } }, (err, band) => {
+      // manejar errores aquí
+      if (err) {
+        console.log(err);
+      }
+    });
+  }
 }
-
 
 module.exports = Bands;

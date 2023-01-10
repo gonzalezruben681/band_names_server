@@ -1,13 +1,15 @@
-const { v4: uuidv4 } = require('uuid');
+const mongoose = require('mongoose');
 
-class Band {
-    constructor(name = 'no-name') {
-        this.id = uuidv4(); //identificador único
-        this.name = name;
-        this.votes = 0;
-    }
-        
-    
-}
+const bandSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+  },
+  votes: {
+    type: Number,
+  }
+});
+
+const Band = mongoose.model('Band', bandSchema);
 
 module.exports = Band;
