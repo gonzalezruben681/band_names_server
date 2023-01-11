@@ -1,3 +1,4 @@
+//band.js
 const mongoose = require('mongoose');
 
 const bandSchema = new mongoose.Schema({

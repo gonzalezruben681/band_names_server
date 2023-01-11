@@ -1,4 +1,8 @@
+//bands.js
 const Band = require("./band");
+const uuid = require("uuid");
+
+const Voter = require("../models/voter");
 
 class Bands {
   constructor() {}
@@ -34,14 +38,34 @@ class Bands {
     });
   }
 
-  voteBand(id) {
-    // Incrementar votos de la banda y guardar
-    Band.findOneAndUpdate({ _id: id }, { $inc: { votes: 1 } }, (err, band) => {
-      // manejar errores aquí
-      if (err) {
-        console.log(err);
+  async voteBand(bandId, voterId) {
+    try {    
+      // check if voterId already exists in voter collection
+      const voter = await Voter.findOne({ voterId });
+      if (voter) {
+        return new Error("voterId already used");
       }
-    });
+  
+      const band = await Band.findByIdAndUpdate(
+        bandId,
+        { $inc: { votes: 1 } },
+        { new: true }
+      );
+  
+      // create a new voter
+      const newVoter = new Voter({
+        voterId,
+      });
+      await newVoter.save();
+      return band;
+    }
+    catch (error) {
+      console.log(`El error: ${error}`);
+    }
+  }
+
+  async getBands() {
+    return await Band.find();
   }
 }
 
