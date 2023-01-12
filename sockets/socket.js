@@ -92,4 +92,27 @@ client.on('reset-votes', async() => {
       });
     });
   });
+
+  client.on("delete-voter", async (voterName) => {
+    try {
+        await Voter.findOneAndDelete({ voterName });
+        // emitir un evento al cliente para actualizar la interfaz de usuario
+        io.emit("voter-deleted", voterName);
+    } catch (err) {
+        console.log(err);
+    }
+});
+
+client.on("delete-all-voters", async () => {
+  try {
+      // eliminar todos los registros de votantes
+      await Voter.deleteMany();
+      // emitir un evento al cliente para actualizar la interfaz de usuario
+      io.emit("all-voters-deleted");
+  } catch (err) {
+      console.log(err);
+  }
+});
+
+
 });
