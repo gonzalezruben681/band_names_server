@@ -16,6 +16,11 @@ io.on("connection", (client) => {
     client.emit("active-bands", bands);
   });
 
+   // Emitir votantes activos a todos los clientes
+  Voter.find((err, voter) => {
+    client.emit("active-voter", voter);
+  });
+
   client.on("disconnect", () => {
     console.log("Cliente desconectado");
   });
@@ -24,17 +29,20 @@ io.on("connection", (client) => {
     try {
         // buscar un votante con ese nombre
         let voter = await Voter.findOne({ voterName: payload.voterName });
-        console.log(payload.voterName);
         if (!voter) {
             // si no existe, crear un nuevo registro de votante
             voter = new Voter({ 
                 voterName: payload.voterName,
                 voterId: uuid.v4() // utilizando la librería uuid para generar un id único
             });
+
             await voter.save();
+            // Emitir votantes actualizados a todos los clientes
+            const voters = await Voter.find();
+            io.emit("active-voter", voters);
         } else {
             // si ya existe, emitir un error
-            client.emit("vote-error", `Lo siento, ${payload.voterName}, ya has votado anteriormente`);
+            client.emit("vote-error", `Lo siento: ${payload.voterName}, ya has votado anteriormente`);
             return;
         }
         // buscar la banda correspondiente y incrementar su contador de votos
@@ -43,6 +51,7 @@ io.on("connection", (client) => {
             { $inc: { votes: 1 } },
             { new: true }
         );
+
         // Emitir bandas actualizadas a todos los clientes
         const bands = await Band.find();
         io.emit("active-bands", bands);
@@ -65,7 +74,11 @@ client.on('reset-votes', async() => {
 
   client.on("add-band", (payload) => {
     // Crear nueva banda y guardar
-    const newBand = new Band({ name: payload.name, votes: 0 });
+    const newBand = new Band({
+      name: payload.name, 
+      votes: 0, 
+      //  genre: payload.genre,
+      });
     newBand.save((err, band) => {
       // Emitir bandas actualizadas a todos los clientes
       Band.find((err, bands) => {
@@ -98,6 +111,9 @@ client.on('reset-votes', async() => {
         await Voter.findOneAndDelete({ voterName });
         // emitir un evento al cliente para actualizar la interfaz de usuario
         io.emit("voter-deleted", voterName);
+        const voters = await Voter.find();
+            io.emit("active-voter", voters);
+        console.log(voterName);
     } catch (err) {
         console.log(err);
     }
@@ -109,6 +125,9 @@ client.on("delete-all-voters", async () => {
       await Voter.deleteMany();
       // emitir un evento al cliente para actualizar la interfaz de usuario
       io.emit("all-voters-deleted");
+       // Emitir votantes actualizados a todos los clientes
+            const voters = await Voter.find();
+            io.emit("active-voter", voters);
   } catch (err) {
       console.log(err);
   }

@@ -8,7 +8,11 @@ const bandSchema = new mongoose.Schema({
   },
   votes: {
     type: Number,
-  }
+  },
+  // genre: {
+  //   type: String,
+  //   required: true,
+  // }
 });
 
 const Band = mongoose.model('Band', bandSchema);
