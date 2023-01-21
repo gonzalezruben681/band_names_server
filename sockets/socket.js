@@ -1,11 +1,10 @@
 //socket.js
 
-const uuid = require('uuid');
+const uuid = require("uuid");
 const { io } = require("../index");
 const Band = require("../models/band");
-const Bands = require("../models/bands");
+const Category = require("../models/category");
 const Voter = require("../models/voter");
-const bands = new Bands();
 
 // Mensajes de Sockets
 io.on("connection", (client) => {
@@ -16,7 +15,7 @@ io.on("connection", (client) => {
     client.emit("active-bands", bands);
   });
 
-   // Emitir votantes activos a todos los clientes
+  // Emitir votantes activos a todos los clientes
   Voter.find((err, voter) => {
     client.emit("active-voter", voter);
   });
@@ -27,58 +26,61 @@ io.on("connection", (client) => {
 
   client.on("vote-band", async (payload) => {
     try {
-        // buscar un votante con ese nombre
-        let voter = await Voter.findOne({ voterName: payload.voterName });
-        if (!voter) {
-            // si no existe, crear un nuevo registro de votante
-            voter = new Voter({ 
-                voterName: payload.voterName,
-                voterId: uuid.v4() // utilizando la librería uuid para generar un id único
-            });
+      // buscar un votante con ese nombre
+      let voter = await Voter.findOne({ voterName: payload.voterName });
+      if (!voter) {
+        // si no existe, crear un nuevo registro de votante
+        voter = new Voter({
+          voterName: payload.voterName,
+          voterId: uuid.v4(), // utilizando la librería uuid para generar un id único
+        });
 
-            await voter.save();
-            // Emitir votantes actualizados a todos los clientes
-            const voters = await Voter.find();
-            io.emit("active-voter", voters);
-        } else {
-            // si ya existe, emitir un error
-            client.emit("vote-error", `Lo siento: ${payload.voterName}, ya has votado anteriormente`);
-            return;
-        }
-        // buscar la banda correspondiente y incrementar su contador de votos
-        const band = await Band.findByIdAndUpdate(
-            payload.id,
-            { $inc: { votes: 1 } },
-            { new: true }
+        await voter.save();
+        // Emitir votantes actualizados a todos los clientes
+        const voters = await Voter.find();
+        io.emit("active-voter", voters);
+      } else {
+        // si ya existe, emitir un error
+        client.emit(
+          "vote-error",
+          `Lo siento: ${payload.voterName}, ya has votado anteriormente`
         );
+        return;
+      }
+      // buscar la banda correspondiente y incrementar su contador de votos
+      const band = await Band.findByIdAndUpdate(
+        payload.id,
+        { $inc: { votes: 1 } },
+        { new: true }
+      );
 
-        // Emitir bandas actualizadas a todos los clientes
-        const bands = await Band.find();
-        io.emit("active-bands", bands);
+      // Emitir bandas actualizadas a todos los clientes
+      const bands = await Band.find();
+      io.emit("active-bands", bands);
     } catch (err) {
-        console.log(err);
+      console.log(err);
     }
-});
+  });
 
-client.on('reset-votes', async() => {
-  try {
+  client.on("reset-votes", async () => {
+    try {
       //actualizar todos los registros de banda para establecer el campo votes en 0
       await Band.updateMany({}, { $set: { votes: 0 } });
       //obtener todas las bandas actualizadas
       const bands = await Band.find();
-      io.emit('active-bands', bands);
-  } catch(err) {
+      io.emit("active-bands", bands);
+    } catch (err) {
       console.log(err);
-  }
-});
+    }
+  });
 
   client.on("add-band", (payload) => {
     // Crear nueva banda y guardar
     const newBand = new Band({
-      name: payload.name, 
-      votes: 0, 
-      //  genre: payload.genre,
-      });
+      name: payload.name,
+      votes: 0,
+      category: payload.category,
+    });
     newBand.save((err, band) => {
       // Emitir bandas actualizadas a todos los clientes
       Band.find((err, bands) => {
@@ -108,30 +110,71 @@ client.on('reset-votes', async() => {
 
   client.on("delete-voter", async (voterName) => {
     try {
-        await Voter.findOneAndDelete({ voterName });
-        // emitir un evento al cliente para actualizar la interfaz de usuario
-        io.emit("voter-deleted", voterName);
-        const voters = await Voter.find();
-            io.emit("active-voter", voters);
-        console.log(voterName);
+      await Voter.findOneAndDelete({ voterName });
+      // emitir un evento al cliente para actualizar la interfaz de usuario
+      io.emit("voter-deleted", voterName);
+      const voters = await Voter.find();
+      io.emit("active-voter", voters);
+      console.log(voterName);
     } catch (err) {
-        console.log(err);
+      console.log(err);
     }
-});
+  });
 
-client.on("delete-all-voters", async () => {
-  try {
+  client.on("add-category", (payload) => {
+    // Crear nueva categoría y guardar
+    const newCategory = new Category({ name: payload.name });
+    newCategory.save((err, category) => {
+      // Enviar categorías actualizadas a todos los clientes
+      Category.find((err, categories) => {
+        io.emit("categories", categories);
+      });
+    });
+  });
+
+  client.on("get-categories", () => {
+    // Enviar categorías activas al cliente
+    Category.find((err, categories) => {
+      client.emit("categories", categories);
+    });
+  });
+
+  client.on("edit-category", (payload) => {
+    // Buscar categoría por id y actualizar su nombre
+    Category.findByIdAndUpdate(
+      payload.id,
+      { $set: { name: payload.name } },
+      { new: true },
+      (err, category) => {
+        // Enviar categorías actualizadas a todos los clientes
+        Category.find((err, categories) => {
+          io.emit("categories", categories);
+        });
+      }
+    );
+  });
+
+  client.on("delete-category", (payload) => {
+    // Buscar categoría por id y eliminar
+    Category.findByIdAndDelete(payload.id, (err) => {
+      // Enviar categorías actualizadas a todos los clientes
+      Category.find((err, categories) => {
+        io.emit("categories", categories);
+      });
+    });
+  });
+
+  client.on("delete-all-voters", async () => {
+    try {
       // eliminar todos los registros de votantes
       await Voter.deleteMany();
       // emitir un evento al cliente para actualizar la interfaz de usuario
       io.emit("all-voters-deleted");
-       // Emitir votantes actualizados a todos los clientes
-            const voters = await Voter.find();
-            io.emit("active-voter", voters);
-  } catch (err) {
+      // Emitir votantes actualizados a todos los clientes
+      const voters = await Voter.find();
+      io.emit("active-voter", voters);
+    } catch (err) {
       console.log(err);
-  }
-});
-
-
+    }
+  });
 });
